@@ -21,6 +21,7 @@
 
 pub mod document;
 pub mod lexer;
+mod type_system;
 
 use std::collections::BTreeMap;
 
