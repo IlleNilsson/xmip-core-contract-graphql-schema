@@ -83,19 +83,22 @@ impl Schema {
                         .clone()
                         .unwrap_or_else(|| format!("{kind} {}", ordinal + 1));
                     let Some(known) = self.types.get(root) else {
-                        issues.push(issue(format!("the schema has no {kind} root type"), &label));
+                        issues.push(issue(
+                            &format!("the schema has no {kind} root type"),
+                            &label,
+                        ));
                         continue;
                     };
                     for field in fields {
                         if !known.contains(field) && !field.starts_with("__") {
-                            issues.push(issue(format!("{root} has no field {field}"), &label));
+                            issues.push(issue(&format!("{root} has no field {field}"), &label));
                         }
                     }
                 }
                 Definition::Fragment { name, on } => {
                     if !self.types.contains_key(on) {
                         issues.push(issue(
-                            format!("the schema has no type {on}"),
+                            &format!("the schema has no type {on}"),
                             &format!("fragment {name}"),
                         ));
                     }
@@ -107,12 +110,8 @@ impl Schema {
     }
 }
 
-fn issue(message: String, path: &str) -> ValidationIssue {
-    ValidationIssue {
-        code: "schema".to_string(),
-        message,
-        path: Some(path.to_string()),
-    }
+fn issue(message: &str, path: &str) -> ValidationIssue {
+    ValidationIssue::at("schema", message, path)
 }
 
 /// The GraphQL contract, bare or bound to a schema.
@@ -204,14 +203,8 @@ impl Contract for GraphqlSchema {
     }
 
     fn validate(&self, stream: &Stream) -> Result<ValidationResult, ContractError> {
-        let malformed = |message: String| ValidationResult {
-            valid: false,
-            issues: vec![ValidationIssue {
-                code: "malformed".to_string(),
-                message,
-                path: None,
-            }],
-        };
+        let malformed =
+            |message: String| ValidationResult::of(vec![ValidationIssue::malformed(&message)]);
         let text = match std::str::from_utf8(stream.bytes()) {
             Ok(text) => text,
             Err(error) => return Ok(malformed(format!("not text: {error}"))),
@@ -224,10 +217,7 @@ impl Contract for GraphqlSchema {
             .schema
             .as_ref()
             .map_or_else(Vec::new, |schema| schema.issues(&definitions));
-        Ok(ValidationResult {
-            valid: issues.is_empty(),
-            issues,
-        })
+        Ok(ValidationResult::of(issues))
     }
 }
 
@@ -259,6 +249,7 @@ impl ContractFactory for GraphqlSchemaFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use contract::fixture::stream_as as stream;
     use xcore::StreamId;
 
     const SCHEMA: &str = r"
@@ -268,14 +259,6 @@ mod tests {
         extend type Query { me: Node }
         interface Node { id: ID! }
     ";
-
-    fn stream(text: &str, media_type: Option<&str>) -> Stream {
-        Stream::new(
-            StreamId::new(1),
-            text.as_bytes().to_vec(),
-            media_type.map(str::to_string),
-        )
-    }
 
     #[test]
     fn a_sound_document_holds_bare_and_against_its_schema() {
