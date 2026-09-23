@@ -95,13 +95,11 @@ impl Schema {
                         }
                     }
                 }
-                Definition::Fragment { name, on } => {
-                    if !self.types.contains_key(on) {
-                        issues.push(issue(
-                            &format!("the schema has no type {on}"),
-                            &format!("fragment {name}"),
-                        ));
-                    }
+                Definition::Fragment { name, on } if !self.types.contains_key(on) => {
+                    issues.push(issue(
+                        &format!("the schema has no type {on}"),
+                        &format!("fragment {name}"),
+                    ));
                 }
                 _ => {}
             }
