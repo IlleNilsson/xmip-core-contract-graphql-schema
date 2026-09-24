@@ -25,11 +25,11 @@ mod type_system;
 
 use std::collections::BTreeMap;
 
-use document::{Definition, parse};
-use sdk::contract::{
+use contract::{
     Contract, ContractDescriptor, ContractError, ContractFactory, ContractId, ValidationIssue,
     ValidationResult,
 };
+use document::{Definition, parse};
 use stream::Stream;
 
 /// What a bound schema knows: its root operation types and the fields of
