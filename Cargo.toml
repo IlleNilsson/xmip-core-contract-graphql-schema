@@ -16,9 +16,11 @@ path = "src/lib.rs"
 [dependencies]
 # A Technology depends on its parent Capability, never the reverse
 # (repository-model.md). The Contract trait and its value types live there.
-# Standard library otherwise: GraphQL is tokens and braces.
+# Standard library otherwise, and codec's character reader: GraphQL is tokens
+# and braces.
 contract = { package = "xmip-core-contract", git = "https://github.com/IlleNilsson/xmip-core-contract", branch = "main" }
 stream = { package = "xmip-core-stream", git = "https://github.com/IlleNilsson/xmip-core-stream", branch = "main" }
+codec = { package = "xmip-core-library-codec", git = "https://github.com/IlleNilsson/xmip-core-library-codec", branch = "main" }
 
 [dev-dependencies]
 # The parent's Stream fixture, for the tests only (ADR-0044).
