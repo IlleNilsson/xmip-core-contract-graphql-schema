@@ -31,6 +31,7 @@ use contract::{
 };
 use document::{Definition, parse};
 use stream::Stream;
+use xcore::settings::{Applies, Kind, Presence, Setting, Settings};
 
 /// What a bound schema knows: its root operation types and the fields of
 /// every type, `extend`s merged in.
@@ -229,6 +230,10 @@ impl ContractFactory for GraphqlSchemaFactory {
         "graphql-schema"
     }
 
+    fn settings(&self) -> &'static Settings {
+        SETTINGS
+    }
+
     fn load(&self, reference: &str) -> Result<Box<dyn Contract>, ContractError> {
         let reference = reference.trim();
         if reference.is_empty() {
@@ -243,6 +248,18 @@ impl ContractFactory for GraphqlSchemaFactory {
         )))
     }
 }
+
+/// What a Location gives this contract (ADR-0064, amendment 2026-09-26).
+const SETTINGS: &Settings = &Settings {
+    technology: env!("CARGO_PKG_NAME"),
+    settings: &[Setting {
+        name: "reference",
+        kind: Kind::Address,
+        presence: Presence::Optional,
+        meaning: "The path of the schema documents are held to; left out, any sound one holds.",
+        applies: Applies::Both,
+    }],
+};
 
 #[cfg(test)]
 mod tests {
@@ -367,5 +384,41 @@ mod tests {
                 .contains(':')
         );
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn graphql_schema_declares_its_settings_and_reads_through_them() {
+        assert!(SETTINGS.problems().is_empty(), "{:?}", SETTINGS.problems());
+        let given = |name: &str, value: &str| {
+            (
+                name.to_string(),
+                xcore::settings::Given::Text(value.to_string()),
+            )
+        };
+        assert!(
+            GraphqlSchemaFactory.open(Applies::Both, &[]).is_ok(),
+            "bare"
+        );
+        let unread = GraphqlSchemaFactory
+            .open(
+                Applies::Receive,
+                &[given("reference", "/no/such/orders.graphql")],
+            )
+            .err()
+            .expect("an unread file is refused");
+        assert!(
+            unread.message.contains("/no/such/orders.graphql"),
+            "{}",
+            unread.message
+        );
+        let refused = GraphqlSchemaFactory
+            .open(Applies::Send, &[given("unheard_of", "x")])
+            .err()
+            .expect("an unknown setting is refused");
+        assert!(
+            refused.message.contains("unheard_of"),
+            "{}",
+            refused.message
+        );
     }
 }
