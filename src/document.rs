@@ -229,6 +229,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::assert_matches;
 
     pub const SCHEMA: &str = r#"
         "The schema"
@@ -277,8 +278,10 @@ mod tests {
         assert!(definitions.iter().any(|d| matches!(d,
             Definition::Directive { name } if name == "key")));
         let last = definitions.last().expect("extend");
-        assert!(matches!(last, Definition::Type { name, fields, .. }
-            if name == "Query" && fields == &["me"]));
+        assert_matches!(
+            last,
+            Definition::Type { name, fields, .. } if name == "Query" && fields == &["me"]
+        );
     }
 
     #[test]
@@ -300,13 +303,14 @@ mod tests {
                 fields: vec!["orders".into()]
             }
         );
-        assert!(
-            matches!(&definitions[1], Definition::Operation { kind, name: None, fields }
-            if kind == "mutation" && fields == &["placeOrder"])
+        assert_matches!(
+            &definitions[1],
+            Definition::Operation { kind, name: None, fields }
+                if kind == "mutation" && fields == &["placeOrder"]
         );
-        assert!(
-            matches!(&definitions[2], Definition::Operation { name: None, fields, .. }
-            if fields == &["order"])
+        assert_matches!(
+            &definitions[2],
+            Definition::Operation { name: None, fields, .. } if fields == &["order"]
         );
         assert_eq!(
             definitions[3],
