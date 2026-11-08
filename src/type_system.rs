@@ -163,7 +163,9 @@ impl Parser {
     /// `Name`, `[Type]`, either followed by `!`.
     pub(crate) fn type_reference(&mut self) -> Result<(), String> {
         if self.eat('[') {
+            self.enter()?;
             self.type_reference()?;
+            self.leave();
             if !self.eat(']') {
                 return Err(self.error("expected ]"));
             }
