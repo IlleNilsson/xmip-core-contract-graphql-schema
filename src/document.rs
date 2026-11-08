@@ -36,7 +36,11 @@ pub enum Definition {
 /// A lexical error, or a definition that is not one GraphQL has.
 pub fn parse(text: &str) -> Result<Vec<Definition>, String> {
     let tokens = lex(text)?;
-    let mut parser = Parser { tokens, at: 0 };
+    let mut parser = Parser {
+        tokens,
+        at: 0,
+        depth: 0,
+    };
     let mut definitions = Vec::new();
     while !parser.done() {
         definitions.push(parser.definition()?);
@@ -50,9 +54,24 @@ pub fn parse(text: &str) -> Result<Vec<Definition>, String> {
 pub(crate) struct Parser {
     pub(crate) tokens: Vec<Token>,
     pub(crate) at: usize,
+    /// How many selection sets or list types the parser is inside: each
+    /// recurses once, so the text is refused past `codec::depth`'s cap.
+    pub(crate) depth: usize,
 }
 
 impl Parser {
+    /// One level deeper, refused past the cap; [`Parser::leave`] when the
+    /// level closes.
+    pub(crate) fn enter(&mut self) -> Result<(), String> {
+        self.depth += 1;
+        codec::depth::within(self.depth, "a GraphQL document")
+            .map_err(|deep| self.error(&deep.message))
+    }
+
+    pub(crate) const fn leave(&mut self) {
+        self.depth -= 1;
+    }
+
     pub(crate) fn done(&self) -> bool {
         self.at >= self.tokens.len()
     }
@@ -147,6 +166,13 @@ impl Parser {
     /// A selection set: the field names selected at its top level. Aliases
     /// are looked through, spreads skipped, nested sets consumed.
     fn selection_set(&mut self) -> Result<Vec<String>, String> {
+        self.enter()?;
+        let fields = self.selections();
+        self.leave();
+        fields
+    }
+
+    fn selections(&mut self) -> Result<Vec<String>, String> {
         if !self.eat('{') {
             return Err(self.error("expected a selection set"));
         }
@@ -320,6 +346,19 @@ mod tests {
             }
         );
         assert!(parse("{ ...F }").is_ok(), "only a spread is not empty");
+    }
+
+    #[test]
+    fn nesting_past_the_cap_is_refused_before_the_stack_is() {
+        let deep = 100_000;
+        let selections = format!("{}{}", "{ a ".repeat(deep), "}".repeat(deep));
+        let error = parse(&selections).expect_err("deep selections");
+        assert!(error.contains("nests past the 64 levels"), "{error}");
+        let list = format!("type T {{ a: {}ID{} }}", "[".repeat(deep), "]".repeat(deep));
+        let error = parse(&list).expect_err("deep list type");
+        assert!(error.contains("nests past the 64 levels"), "{error}");
+        let honest = format!("{}{}", "{ a ".repeat(64), "}".repeat(64));
+        assert!(parse(&honest).is_ok());
     }
 
     #[test]
