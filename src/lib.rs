@@ -189,7 +189,7 @@ impl Contract for GraphqlSchema {
         }) {
             return Ok(true);
         }
-        let Ok(text) = stream.text() else {
+        let Ok(text) = contract::text(stream)? else {
             return Ok(false);
         };
         let head = text.trim_start();
@@ -204,7 +204,7 @@ impl Contract for GraphqlSchema {
     fn validate(&self, stream: &Stream) -> Result<ValidationResult, ContractError> {
         let malformed =
             |message: String| ValidationResult::of(vec![ValidationIssue::malformed(&message)]);
-        let text = match stream.text() {
+        let text = match contract::text(stream)? {
             Ok(text) => text,
             Err(error) => return Ok(malformed(format!("not text: {error}"))),
         };
