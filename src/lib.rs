@@ -365,8 +365,7 @@ mod tests {
                 .valid
         );
         assert!(Schema::parse("query { a }").is_err(), "no types");
-        let dir = std::env::temp_dir().join("xmip-graphql-schema-test");
-        std::fs::create_dir_all(&dir).expect("dir");
+        let dir = file::temporary::Folder::new("graphql-schema");
         let path = dir.join("orders.graphql");
         std::fs::write(&path, SCHEMA).expect("write");
         let loaded = GraphqlSchemaFactory
