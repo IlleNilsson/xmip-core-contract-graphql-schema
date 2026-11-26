@@ -18,29 +18,48 @@
 //! defines. Holding the selection below the root, field by field through the
 //! types, is the next layer here; the root is where a request that was sent
 //! to the wrong service, or against the wrong version, shows first.
+//!
+//! **Built with its `declaration` feature alone** the crate is
+//! [`declaration`], what a Location naming it is configured with and the
+//! name a Validate step names it by, and none of the code above, which is
+//! behind the default feature: what the surfaces' library carries (ADR-0064,
+//! amendment 2026-11-26).
 
+#[cfg(feature = "declaration")]
+pub mod declaration;
+
+#[cfg(feature = "default")]
 pub mod document;
+#[cfg(feature = "default")]
 pub mod lexer;
+#[cfg(feature = "default")]
 mod type_system;
 
+#[cfg(feature = "default")]
 use std::collections::BTreeMap;
 
+#[cfg(feature = "default")]
 use contract::{
     Contract, ContractDescriptor, ContractError, ContractFactory, ContractId, ValidationIssue,
     ValidationResult,
 };
+#[cfg(feature = "default")]
 use document::{Definition, parse};
+#[cfg(feature = "default")]
 use stream::Stream;
-use xcore::settings::{Applies, Kind, Presence, Setting, Settings};
+#[cfg(feature = "default")]
+use xcore::settings::Settings;
 
 /// What a bound schema knows: its root operation types and the fields of
 /// every type, `extend`s merged in.
+#[cfg(feature = "default")]
 #[derive(Clone, Debug, Default)]
 pub struct Schema {
     roots: BTreeMap<String, String>,
     types: BTreeMap<String, Vec<String>>,
 }
 
+#[cfg(feature = "default")]
 impl Schema {
     /// Read `text` as a schema in the definition language.
     ///
@@ -109,16 +128,19 @@ impl Schema {
     }
 }
 
+#[cfg(feature = "default")]
 fn issue(message: &str, path: &str) -> ValidationIssue {
     ValidationIssue::at("schema", message, path)
 }
 
 /// The GraphQL contract, bare or bound to a schema.
+#[cfg(feature = "default")]
 pub struct GraphqlSchema {
     descriptor: ContractDescriptor,
     schema: Option<Schema>,
 }
 
+#[cfg(feature = "default")]
 impl GraphqlSchema {
     /// A sound document, of any shape.
     #[must_use]
@@ -145,12 +167,14 @@ impl GraphqlSchema {
     }
 }
 
+#[cfg(feature = "default")]
 impl Default for GraphqlSchema {
     fn default() -> Self {
         Self::new()
     }
 }
 
+#[cfg(feature = "default")]
 fn descriptor(id: &str) -> ContractDescriptor {
     ContractDescriptor {
         id: ContractId(id.to_string()),
@@ -159,6 +183,7 @@ fn descriptor(id: &str) -> ContractDescriptor {
     }
 }
 
+#[cfg(feature = "default")]
 const OPENERS: [&str; 12] = [
     "query",
     "mutation",
@@ -174,6 +199,7 @@ const OPENERS: [&str; 12] = [
     "directive",
 ];
 
+#[cfg(feature = "default")]
 impl Contract for GraphqlSchema {
     fn descriptor(&self) -> &ContractDescriptor {
         &self.descriptor
@@ -223,15 +249,17 @@ impl Contract for GraphqlSchema {
 /// Loads the contract a Location names: an empty reference is the bare
 /// contract, anything else the path of a schema file in the definition
 /// language.
+#[cfg(feature = "default")]
 pub struct GraphqlSchemaFactory;
 
+#[cfg(feature = "default")]
 impl ContractFactory for GraphqlSchemaFactory {
     fn technology(&self) -> &'static str {
-        "graphql-schema"
+        declaration::NAME
     }
 
     fn settings(&self) -> &'static Settings {
-        SETTINGS
+        declaration::SETTINGS
     }
 
     fn load(&self, reference: &str) -> Result<Box<dyn Contract>, ContractError> {
@@ -248,18 +276,6 @@ impl ContractFactory for GraphqlSchemaFactory {
         )))
     }
 }
-
-/// What a Location gives this contract (ADR-0064, amendment 2026-09-26).
-const SETTINGS: &Settings = &Settings {
-    technology: env!("CARGO_PKG_NAME"),
-    settings: &[Setting {
-        name: "reference",
-        kind: Kind::Address,
-        presence: Presence::Optional,
-        meaning: "The path of the schema documents are held to; left out, any sound one holds.",
-        applies: Applies::Both,
-    }],
-};
 
 #[cfg(test)]
 mod tests {
@@ -387,6 +403,8 @@ mod tests {
 
     #[test]
     fn graphql_schema_declares_its_settings_and_reads_through_them() {
+        use declaration::SETTINGS;
+        use xcore::settings::Applies;
         assert!(SETTINGS.problems().is_empty(), "{:?}", SETTINGS.problems());
         let given = |name: &str, value: &str| {
             (
